@@ -111,19 +111,32 @@ function renderSlotsAndCrowd() {
         renderStaffQueue();
     });
 });
+function formatGambianPhone(raw) {
+    let digits = raw.replace(/\D/g, '');
+    if (digits.startsWith('220')) digits = digits.slice(3);
+    if (digits.length !== 7) return null;
+    
+    return `+220 ${digits.slice(0, 3)} ${digits.slice(3)}`;
+}
 
 // Book Appointment
 document.getElementById('book-btn').addEventListener('click', () => {
     const name = document.getElementById('patient-name').value.trim();
-    const phone = document.getElementById('patient-phone').value.trim();
+        const rawPhone = document.getElementById('patient-phone').value.trim();
+    const phone = formatGambianPhone(rawPhone);
     const hosp = document.getElementById('hospital-select').value;
     const dept = document.getElementById('dept-select').value;
     const date = visitDateInput.value;
 
-    if (!name || !phone) {
-        alert('Please enter the patient name and WhatsApp phone number.');
+    if (!name) {
+        alert('Please enter the patient full name.');
         return;
     }
+    if (!phone) {
+        alert('Please enter a valid 7-digit Gambian number (e.g. 8301234 or +220 830 1234).');
+        return;
+    }
+
     if (!selectedSlot) {
         alert('Please select an open 30-minute arrival window.');
         return;
