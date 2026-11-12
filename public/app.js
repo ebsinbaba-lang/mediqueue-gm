@@ -250,3 +250,60 @@ function switchTab(tabName) {
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
     document.querySelectorAll('.view-section').forEach(s => s.classList.remove('active'));
     document.getElementById(`tab-${tabName}`).classList.add('active');
+
+        const items = getBookings().filter(b => b.hospital === hosp && b.date === date);
+    list.innerHTML = items.length ? '' : '<p class="empty-state">No bookings for this date.</p>';
+
+    items.forEach(item => {
+        const div = document.createElement('div');
+        div.className = 'q-item';
+        const nextStatus = item.status === 'Confirmed' ? 'Checked In' : 'Seen';
+        div.innerHTML = `
+            <div class="q-info">
+                <strong>${item.id} • ${item.name}</strong>
+                <span>${DEPT_NAMES[item.dept]} | ⏰ ${item.slot} | Status: ${item.status}</span>
+            </div>
+            <button type="button" class="q-action-btn ${item.status === 'Seen' ? 'done' : ''}" ${item.status === 'Seen' ? 'disabled' : ''}>
+                ${item.status === 'Seen' ? '✓ Seen' : `Mark ${nextStatus}`}
+            </button>
+        `;
+        div.querySelector('button').addEventListener('click', () => {
+            const all = getBookings();
+            const target = all.find(b => b.id === item.id);
+            if (target) target.status = nextStatus;
+            saveBookings(all);
+            renderStaffQueue();
+            renderMyTicket();
+        });
+        list.appendChild(div);
+    });
+}
+
+document.getElementById('reset-demo-btn').addEventListener('click', () => {
+    localStorage.removeItem(DB_KEY);
+    localStorage.removeItem(MY_TICKET_KEY);
+    renderSlotsAndCrowd();
+    renderMyTicket();
+    renderStaffQueue();
+});
+
+// Tab Switching
+function switchTab(tabName) {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.view-section').forEach(s => s.classList.remove('active'));
+    document.getElementById(`tab-${tabName}`).classList.add('active');
+    document.getElementById(`view-${tabName}`).classList.add('active');
+}
+
+document.getElementById('tab-patient').addEventListener('click', () => switchTab('patient'));
+document.getElementById('tab-ticket').addEventListener('click', () => { renderMyTicket(); switchTab('ticket'); });
+document.getElementById('tab-staff').addEventListener('click', () => { renderStaffQueue(); switchTab('staff'); });
+document.getElementById('go-book-btn').addEventListener('click', () => switchTab('patient'));
+
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(() => {}));
+}
+
+renderSlotsAndCrowd();
+renderMyTicket();
+
