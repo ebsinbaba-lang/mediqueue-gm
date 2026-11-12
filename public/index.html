@@ -1,1 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MediQueue GM - Smart Hospital Appointment & Queue System</title>
+    <link rel="manifest" href="/manifest.json">
+    <link rel="icon" type="image/png" href="/icon.png">
+    <link rel="apple-touch-icon" href="/icon.png">
+    <link rel="stylesheet" href="/style.css">
+    <meta name="theme-color" content="#0f4c5c">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="MediQueue GM">
+</head>
+<body>
+    <div class="phone-container">
+        <header class="app-header">
+            <div class="logo-badge">🏥</div>
+            <div class="header-text">
+                <h1>MediQueue GM</h1>
+                <p>Anti-Overcrowding Hospital Booking</p>
+            </div>
+        </header>
+
+        <nav class="mode-tabs">
+            <button type="button" class="tab-btn active" id="tab-patient">🩺 Book Visit</button>
+            <button type="button" class="tab-btn" id="tab-ticket">🎟️ My Pass <span id="ticket-badge" class="badge hidden">1</span></button>
+            <button type="button" class="tab-btn" id="tab-staff">👩‍⚕️ Staff Desk</button>
+        </nav>
+
+        <main class="content-body">
+            <!-- VIEW 1: PATIENT BOOKING -->
+            <section id="view-patient" class="view-section active">
+                <div class="crowd-card" id="crowd-card">
+                    <div class="crowd-top">
+                        <span class="crowd-label">Live Waiting Room Status</span>
+                        <span class="crowd-pill low" id="crowd-pill">Low Crowd</span>
+                    </div>
+                    <div class="crowd-bar-bg">
+                        <div class="crowd-bar-fill" id="crowd-bar-fill" style="width: 25%;"></div>
+                    </div>
+                    <small id="crowd-subtext">Staggered 30-min slots active to prevent queues</small>
+                </div>
+
+                <div class="row-box">
+                    <div class="input-group">
+                        <label for="hospital-select">🏥 Hospital / Clinic</label>
+                        <select id="hospital-select" class="input-field">
+                            <option value="EFSTH">EFSTH (Banjul)</option>
+                            <option value="KGH" selected>Kanifing General</option>
+                            <option value="SGH">Serekunda General</option>
+                            <option value="BDH">Brikama District</option>
+                        </select>
+                    </div>
+                    <div class="input-group">
+                        <label for="dept-select">🩺 Department</label>
+                        <select id="dept-select" class="input-field">
+                            <option value="OPD">General OPD</option>
+                            <option value="MAT">Maternity</option>
+                            <option value="PED">Pediatrics</option>
+                            <option value="DEN">Dental Clinic</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="row-box">
+                    <div class="input-group">
+                        <label for="visit-date">📅 Visit Date</label>
+                        <input type="date" id="visit-date" class="input-field">
+                    </div>
+                    <div class="input-group">
+                        <label for="patient-phone">📞 Phone (WhatsApp)</label>
+                        <input type="tel" id="patient-phone" class="input-field" placeholder="e.g. 7701234">
+                    </div>
+                </div>
+
+                <div class="input-group">
+                    <label for="patient-name">👤 Patient Full Name</label>
+                    <input type="text" id="patient-name" class="input-field" placeholder="e.g. Fatou Jallow">
+                </div>
+
+                <div class="input-group">
+                    <label>⏰ Select Arrival Window (Max 4 Patients / Slot)</label>
+                    <div class="slots-grid" id="slots-grid"></div>
+                </div>
+
+                <button type="button" class="btn-primary" id="book-btn">✅ Confirm Appointment Slot</button>
+            </section>
+
+            <!-- VIEW 2: PATIENT DIGITAL PASS -->
+            <section id="view-ticket" class="view-section">
+                <div id="no-ticket-msg" class="empty-state">
+                    <p>No active appointment booked yet.</p>
+                    <button type="button" class="btn-secondary" id="go-book-btn">Book a Time Slot</button>
+                </div>
+
+                <div id="active-ticket-card" class="ticket-card hidden">
+                    <div class="ticket-header">
+                        <span>OFFICIAL QUEUE PASS</span>
+                        <strong id="t-code">KGH-OPD-101</strong>
+                    </div>
+                    <div class="ticket-body">
+                        <div class="t-row"><span>Patient:</span><strong id="t-name">-</strong></div>
+                        <div class="t-row"><span>Hospital:</span><strong id="t-hospital">-</strong></div>
+                        <div class="t-row"><span>Department:</span><strong id="t-dept">-</strong></div>
+                        <div class="t-row"><span>Date:</span><strong id="t-date">-</strong></div>
+                        <div class="t-row highlight"><span>Arrival Window:</span><strong id="t-slot">-</strong></div>
+                        <div class="t-row"><span>Status:</span><strong id="t-status" class="status-booked">Confirmed</strong></div>
+                    </div>
+                    <div class="ticket-footer">
+                        <p>Arrive 10 mins before your window to avoid waiting room congestion.</p>
+                        <button type="button" class="btn-primary" id="copy-whatsapp-btn">📋 Copy Pass for WhatsApp</button>
+                        <button type="button" class="btn-danger-outline" id="cancel-booking-btn">Cancel Appointment</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- VIEW 3: STAFF / NURSE TRIAGE DESK -->
+            <section id="view-staff" class="view-section">
+                <div id="staff-lock-box" class="staff-lock">
+                    <h3>👩‍⚕️ Nurse / Receptionist Desk</h3>
+                    <p>Enter Staff PIN to manage live hospital queue</p>
+                    <input type="password" id="staff-pin-input" class="input-field" placeholder="Demo PIN: 1234" maxlength="4">
+                    <button type="button" class="btn-primary" id="unlock-staff-btn">Unlock Triage Desk</button>
+                </div>
+
+                <div id="staff-dashboard" class="hidden">
+                    <div class="staff-top-bar">
+                        <strong id="staff-hospital-title">Kanifing General Queue</strong>
+                        <button type="button" class="btn-sm" id="reset-demo-btn">Reset Demo</button>
+                    </div>
+                    <div id="staff-queue-list" class="queue-list"></div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script src="/app.js"></script>
+</body>
+</html>
 
