@@ -1,7 +1,7 @@
 // =========================================================
 // SUPABASE CREDENTIALS (CONFIGURED)
 // =========================================================
-const SUPABASE_URL = const SUPABASE_URL = "https://ggmsdvicirbfodswzilf.supabase.co";
+const SUPABASE_URL = "https://ggmsdvicirbfodswzilf.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_jnJt6-2gsHXdbMdQEEWL5w_00k4bsE1";
 // =========================================================
 
