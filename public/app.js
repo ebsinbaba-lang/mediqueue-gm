@@ -2,7 +2,7 @@
 // PASTE YOUR SUPABASE CREDENTIALS BELOW
 // =========================================================
 const SUPABASE_URL = "https://supabase.co";
-const SUPABASE_ANON_KEY = sb_publishable_jnJt6-2gsHXdbMdQEEWL5w_00k4bsE1;
+const SUPABASE_ANON_KEY = "sb_publishable_jnJt6-2gsHXdbMdQEEWL5w_00k4bsE1";
 // =========================================================
 
 const STORAGE_KEY = "mediqueue_gm_bookings_v2";
@@ -49,7 +49,7 @@ function getTodayISO() {
   const offset = now.getTimezoneOffset() * 60000;
   return new Date(now - offset).toISOString().split("T")[0];
 }
-
+ 
 function getSeedBookings() {
   const today = getTodayISO();
   return [
