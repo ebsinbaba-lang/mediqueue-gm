@@ -47,7 +47,7 @@ let staffUnlocked = false;
 function getTodayISO() {
   const now = new Date();
   const offset = now.getTimezoneOffset() * 60000;
-  return new Date(now - offset).toISOString().split("T");
+  return new Date(now - offset).toISOString().split("T")[0];
 }
 
 function getSeedBookings() {
