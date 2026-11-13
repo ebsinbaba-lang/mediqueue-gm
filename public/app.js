@@ -591,73 +591,18 @@ function init() {
     document.getElementById("staffLockCard").classList.remove("hidden");
   });
 
-    let html5QrInstance = null;
-
-  async function processScannedTicket(rawText) {
-    let ticketId = rawText.trim();
-    try {
-      const parsed = JSON.parse(ticketId);
-      if (parsed && parsed.id) ticketId = parsed.id;
-    } catch (_) {}
-
-    const match = allBookings.find((b) => b.id.toLowerCase() === ticketId.toLowerCase());
+      document.getElementById("quickScanBtn").addEventListener("click", async () => {
+    const code = prompt("Enter or scan Patient Ticket ID (e.g., EFSTH-OPD-103):");
+    if (!code) return;
+    const match = allBookings.find((b) => b.id.toLowerCase() === code.trim().toLowerCase());
     if (match) {
       await updateBookingRecord(match.id, { status: "Checked-In" });
       refreshAllViews();
       showToast(`QR Verified: ${match.name} (${match.id}) Checked In!`);
-      stopQrScanner();
     } else {
-      showToast(`Ticket "${ticketId}" not found.`);
-    }
-  }
-
-  async function stopQrScanner() {
-    const box = document.getElementById("qrScannerBox");
-    if (html5QrInstance) {
-      try {
-        await html5QrInstance.stop();
-        html5QrInstance.clear();
-      } catch (_) {}
-      html5QrInstance = null;
-    }
-    if (box) box.classList.add("hidden");
-  }
-
-  document.getElementById("quickScanBtn").addEventListener("click", async () => {
-    const box = document.getElementById("qrScannerBox");
-    box.classList.remove("hidden");
-
-    if (!window.Html5Qrcode) {
-      showToast("Camera library unavailable. Use manual ID box below.");
-      return;
-    }
-
-    if (html5QrInstance) return;
-    html5QrInstance = new Html5Qrcode("qrReaderView");
-
-    try {
-      await html5QrInstance.start(
-        { facingMode: "environment" },
-        { fps: 10, qrbox: { width: 220, height: 220 } },
-        async (decodedText) => {
-          await processScannedTicket(decodedText);
-        }
-      );
-    } catch (err) {
-      html5QrInstance = null;
-      showToast("Camera blocked or unavailable — enter Ticket ID manually.");
+      showToast("Ticket ID not found in system.");
     }
   });
-
-  document.getElementById("closeScannerBtn").addEventListener("click", stopQrScanner);
-
-  document.getElementById("manualCheckInBtn").addEventListener("click", async () => {
-    const input = document.getElementById("manualTicketInput");
-    if (!input.value.trim()) return;
-    await processScannedTicket(input.value);
-    input.value = "";
-  });
-
 
   document.getElementById("staffHospitalFilter").addEventListener("change", renderStaffQueue);
   document.getElementById("staffDeptFilter").addEventListener("change", renderStaffQueue);
