@@ -1,322 +1,350 @@
-const DB_KEY = 'mediqueue_gm_bookings_v1';
-const MY_TICKET_KEY = 'mediqueue_gm_my_ticket';
-const MAX_PER_SLOT = 4;
+// =========================================================
+// PASTE YOUR SUPABASE CREDENTIALS BELOW
+// =========================================================
+const SUPABASE_URL = "https://supabase.co";
+const SUPABASE_ANON_KEY = "PASTE_YOUR_PUBLISHABLE_KEY_HERE";
+// =========================================================
+
+const STORAGE_KEY = "mediqueue_gm_bookings_v2";
+const LAST_TICKET_KEY = "mediqueue_gm_last_ticket";
+const SLOT_CAPACITY = 4;
+const STAFF_PIN = "1234";
+
+const HOSPITALS = {
+  EFSTH: "EFSTH (Banjul)",
+  KGH: "Kanifing General Hospital",
+  SGH: "Serekunda General Hospital",
+  BDH: "Brikama District Hospital"
+};
+
+const DEPARTMENTS = {
+  OPD: "General OPD",
+  MAT: "Maternity & Antenatal",
+  PED: "Pediatrics",
+  DEN: "Dental Clinic"
+};
 
 const TIME_SLOTS = [
-    '08:30 - 09:00',
-    '09:00 - 09:30',
-    '09:30 - 10:00',
-    '10:00 - 10:30',
-    '10:30 - 11:00',
-    '11:00 - 11:30'
+  "08:30 - 09:00 AM",
+  "09:00 - 09:30 AM",
+  "09:30 - 10:00 AM",
+  "10:00 - 10:30 AM",
+  "10:30 - 11:00 AM",
+  "11:00 - 11:30 AM",
+  "11:30 - 12:00 PM",
+  "12:00 - 12:30 PM",
+  "12:30 - 01:00 PM",
+  "01:00 - 01:30 PM"
 ];
 
-const HOSPITAL_NAMES = {
-    EFSTH: 'EFSTH (Banjul)',
-    KGH: 'Kanifing General',
-    SGH: 'Serekunda General',
-    BDH: 'Brikama District'
-};
+const PRIORITY_WEIGHT = { Urgent: 1, Priority: 2, Routine: 3 };
 
-const DEPT_NAMES = {
-    OPD: 'General OPD',
-    MAT: 'Maternity',
-    PED: 'Pediatrics',
-    DEN: 'Dental Clinic'
-};
+let supabaseClient = null;
+let allBookings = [];
+let selectedSlot = null;
+let staffUnlocked = false;
 
-const todayStr = new Date().toISOString().split('T')[0];
-const visitDateInput = document.getElementById('visit-date');
-visitDateInput.value = todayStr;
-visitDateInput.min = todayStr;
-
-let selectedSlot = '';
-
-// Pre-load realistic Gambian bookings so demo looks alive right away
-function getBookings() {
-    const raw = localStorage.getItem(DB_KEY);
-    if (raw) return JSON.parse(raw);
-
-    const seed = [
-        { id: 'KGH-OPD-101', hospital: 'KGH', dept: 'OPD', date: todayStr, slot: '08:30 - 09:00', name: 'Lamin Touray', phone: '7712345', status: 'Checked In' },
-        { id: 'KGH-OPD-102', hospital: 'KGH', dept: 'OPD', date: todayStr, slot: '08:30 - 09:00', name: 'Awa Ceesay', phone: '3456789', status: 'Confirmed' },
-        { id: 'KGH-OPD-103', hospital: 'KGH', dept: 'OPD', date: todayStr, slot: '08:30 - 09:00', name: 'Modou Njie', phone: '9911223', status: 'Confirmed' },
-        { id: 'KGH-OPD-104', hospital: 'KGH', dept: 'OPD', date: todayStr, slot: '08:30 - 09:00', name: 'Mariama Bah', phone: '2233445', status: 'Confirmed' },
-        { id: 'KGH-OPD-105', hospital: 'KGH', dept: 'OPD', date: todayStr, slot: '09:00 - 09:30', name: 'Ousman Camara', phone: '6677889', status: 'Confirmed' }
-    ];
-    localStorage.setItem(DB_KEY, JSON.stringify(seed));
-    return seed;
+function getTodayISO() {
+  const now = new Date();
+  const offset = now.getTimezoneOffset() * 60000;
+  return new Date(now - offset).toISOString().split("T")[0];
 }
 
-function saveBookings(list) {
-    localStorage.setItem(DB_KEY, JSON.stringify(list));
-}
-
-// Render available 30-min slots & live crowd indicator
-function renderSlotsAndCrowd() {
-    const hosp = document.getElementById('hospital-select').value;
-    const dept = document.getElementById('dept-select').value;
-    const date = visitDateInput.value;
-    const bookings = getBookings().filter(b => b.hospital === hosp && b.dept === dept && b.date === date);
-
-    // Update Crowd Meter
-    const totalCapacity = TIME_SLOTS.length * MAX_PER_SLOT;
-    const pct = Math.min(100, Math.round((bookings.length / totalCapacity) * 100));
-    const pill = document.getElementById('crowd-pill');
-    const fill = document.getElementById('crowd-bar-fill');
-
-    fill.style.width = `${Math.max(12, pct)}%`;
-    if (pct >= 75) {
-        pill.className = 'crowd-pill high';
-        pill.innerText = `High Load (${pct}%)`;
-        fill.style.background = '#dc2626';
-    } else if (pct >= 40) {
-        pill.className = 'crowd-pill med';
-        pill.innerText = `Moderate (${pct}%)`;
-        fill.style.background = '#d97706';
-    } else {
-        pill.className = 'crowd-pill low';
-        pill.innerText = `Low Crowd (${pct}%)`;
-        fill.style.background = '#16a34a';
+function getSeedBookings() {
+  const today = getTodayISO();
+  return [
+    {
+      id: "EFSTH-OPD-101",
+      hospital: "EFSTH",
+      dept: "OPD",
+      date: today,
+      slot: "08:30 - 09:00 AM",
+      name: "Mariama Touray",
+      phone: "+220 701 2241",
+      note: "Blood pressure follow-up",
+      priority: "Priority",
+      status: "Seen"
+    },
+    {
+      id: "EFSTH-OPD-102",
+      hospital: "EFSTH",
+      dept: "OPD",
+      date: today,
+      slot: "08:30 - 09:00 AM",
+      name: "Lamin Ceesay",
+      phone: "+220 392 8810",
+      note: "High fever & chills",
+      priority: "Urgent",
+      status: "Checked-In"
+    },
+    {
+      id: "EFSTH-OPD-103",
+      hospital: "EFSTH",
+      dept: "OPD",
+      date: today,
+      slot: "09:00 - 09:30 AM",
+      name: "Awa Njie",
+      phone: "+220 981 4402",
+      note: "General checkup",
+      priority: "Routine",
+      status: "Booked"
+    },
+    {
+      id: "KGH-MAT-101",
+      hospital: "KGH",
+      dept: "MAT",
+      date: today,
+      slot: "09:00 - 09:30 AM",
+      name: "Binta Camara",
+      phone: "+220 512 7734",
+      note: "Routine antenatal scan",
+      priority: "Priority",
+      status: "Checked-In"
     }
+  ];
+}
 
-    // Render Time Slot Buttons
-    const grid = document.getElementById('slots-grid');
-    grid.innerHTML = '';
-    selectedSlot = '';
+function isSupabaseConfigured() {
+  return (
+    window.supabase &&
+    SUPABASE_URL.startsWith("https://") &&
+    SUPABASE_ANON_KEY.length > 20 &&
+    !SUPABASE_ANON_KEY.includes("PASTE_YOUR")
+  );
+}
 
-    TIME_SLOTS.forEach(slot => {
-        const count = bookings.filter(b => b.slot === slot).length;
-        const left = MAX_PER_SLOT - count;
-        const btn = document.createElement('button');
-        btn.type = 'button';
-        btn.className = left <= 0 ? 'slot-btn full' : 'slot-btn';
-        btn.disabled = left <= 0;
-        btn.innerHTML = `<strong>${slot}</strong><span>${left <= 0 ? 'FULL (Locked)' : `${left} of ${MAX_PER_SLOT} spots left`}</span>`;
+function setSyncBadge(isCloud) {
+  const badge = document.getElementById("syncStatusBadge");
+  if (!badge) return;
+  if (isCloud) {
+    badge.textContent = "● Cloud Live";
+    badge.classList.add("live");
+  } else {
+    badge.textContent = "Local Demo Mode";
+    badge.classList.remove("live");
+  }
+}
 
-        if (left > 0) {
-            btn.addEventListener('click', () => {
-                document.querySelectorAll('.slot-btn').forEach(b => b.classList.remove('selected'));
-                btn.classList.add('selected');
-                selectedSlot = slot;
-            });
+async function initDataLayer() {
+  if (isSupabaseConfigured()) {
+    supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    setSyncBadge(true);
+    await fetchFromSupabase();
+
+    supabaseClient
+      .channel("public:bookings")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "bookings" },
+        async () => {
+          await fetchFromSupabase();
+          refreshAllViews();
         }
-        grid.appendChild(btn);
-    });
+      )
+      .subscribe();
+  } else {
+    setSyncBadge(false);
+    const raw = localStorage.getItem(STORAGE_KEY);
+    allBookings = raw ? JSON.parse(raw) : getSeedBookings();
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(allBookings));
+  }
+  refreshAllViews();
 }
 
-['hospital-select', 'dept-select', 'visit-date'].forEach(id => {
-    document.getElementById(id).addEventListener('change', () => {
-        renderSlotsAndCrowd();
-        renderStaffQueue();
-    });
-});
-function formatGambianPhone(raw) {
-    let digits = raw.replace(/\D/g, '');
-    if (digits.startsWith('220')) digits = digits.slice(3);
-    if (digits.length !== 7) return null;
-    
-    return `+220 ${digits.slice(0, 3)} ${digits.slice(3)}`;
+async function fetchFromSupabase() {
+  const { data, error } = await supabaseClient
+    .from("bookings")
+    .select("*")
+    .order("created_at", { ascending: true });
+
+  if (!error && data) {
+    allBookings = data;
+  }
 }
 
-// Book Appointment
-document.getElementById('book-btn').addEventListener('click', () => {
-    const name = document.getElementById('patient-name').value.trim();
-        const rawPhone = document.getElementById('patient-phone').value.trim();
-    const phone = formatGambianPhone(rawPhone);
-    const hosp = document.getElementById('hospital-select').value;
-    const dept = document.getElementById('dept-select').value;
-    const date = visitDateInput.value;
-
-    if (!name) {
-        alert('Please enter the patient full name.');
-        return;
+async function saveNewBooking(ticket) {
+  if (supabaseClient) {
+    const { error } = await supabaseClient.from("bookings").insert([ticket]);
+    if (error) {
+      showToast("Cloud sync error: " + error.message);
+      return false;
     }
-    if (!phone) {
-        alert('Please enter a valid 7-digit Gambian number (e.g. 8301234 or +220 830 1234).');
-        return;
-    }
-
-    if (!selectedSlot) {
-        alert('Please select an open 30-minute arrival window.');
-        return;
-    }
-
-    const bookings = getBookings();
-    const ticketId = `${hosp}-${dept}-${100 + bookings.length + 1}`;
-    const newTicket = { id: ticketId, hospital: hosp, dept, date, slot: selectedSlot, name, phone, status: 'Confirmed' };
-
-    bookings.push(newTicket);
-    saveBookings(bookings);
-    localStorage.setItem(MY_TICKET_KEY, JSON.stringify(newTicket));
-
-    document.getElementById('patient-name').value = '';
-    renderSlotsAndCrowd();
-    renderMyTicket();
-    switchTab('ticket');
-});
-
-// Render My Digital Queue Pass
-function renderMyTicket() {
-    const raw = localStorage.getItem(MY_TICKET_KEY);
-    const badge = document.getElementById('ticket-badge');
-    const emptyMsg = document.getElementById('no-ticket-msg');
-    const card = document.getElementById('active-ticket-card');
-
-    if (!raw) {
-        badge.classList.add('hidden');
-        emptyMsg.classList.remove('hidden');
-        card.classList.add('hidden');
-        return;
-    }
-
-    const t = JSON.parse(raw);
-    const liveRecord = getBookings().find(b => b.id === t.id) || t;
-
-    badge.classList.remove('hidden');
-    emptyMsg.classList.add('hidden');
-    card.classList.remove('hidden');
-
-    document.getElementById('t-code').innerText = liveRecord.id;
-    document.getElementById('t-name').innerText = liveRecord.name;
-    document.getElementById('t-hospital').innerText = HOSPITAL_NAMES[liveRecord.hospital];
-    document.getElementById('t-dept').innerText = DEPT_NAMES[liveRecord.dept];
-    document.getElementById('t-date').innerText = liveRecord.date;
-    document.getElementById('t-slot').innerText = liveRecord.slot;
-    document.getElementById('t-status').innerText = liveRecord.status;
+    await fetchFromSupabase();
+    return true;
+  } else {
+    allBookings.push(ticket);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(allBookings));
+    return true;
+  }
 }
 
-document.getElementById('copy-whatsapp-btn').addEventListener('click', () => {
-    const t = JSON.parse(localStorage.getItem(MY_TICKET_KEY));
-    if (!t) return;
-    const msg = `🏥 MediQueue GM Pass\nTicket: ${t.id}\nPatient: ${t.name}\nHospital: ${HOSPITAL_NAMES[t.hospital]} (${DEPT_NAMES[t.dept]})\nDate: ${t.date}\nArrival Window: ${t.slot}`;
-    navigator.clipboard.writeText(msg);
-    alert('✅ Queue Pass copied! You can paste it into WhatsApp.');
-});
-
-document.getElementById('cancel-booking-btn').addEventListener('click', () => {
-    const t = JSON.parse(localStorage.getItem(MY_TICKET_KEY));
-    if (!t || !confirm('Cancel your appointment and release this slot?')) return;
-    const updated = getBookings().filter(b => b.id !== t.id);
-    saveBookings(updated);
-    localStorage.removeItem(MY_TICKET_KEY);
-    renderSlotsAndCrowd();
-    renderMyTicket();
-});
-
-// Staff / Nurse Triage Dashboard
-document.getElementById('unlock-staff-btn').addEventListener('click', () => {
-    const pin = document.getElementById('staff-pin-input').value;
-    if (pin === '1234') {
-        document.getElementById('staff-lock-box').classList.add('hidden');
-        document.getElementById('staff-dashboard').classList.remove('hidden');
-        renderStaffQueue();
-    } else {
-        alert('Invalid PIN. Use 1234 for demo.');
-    }
-});
-
-function renderStaffQueue() {
-    const hosp = document.getElementById('hospital-select').value;
-    const date = visitDateInput.value;
-    document.getElementById('staff-hospital-title').innerText = `${HOSPITAL_NAMES[hosp]} (${date})`;
-
-    const list = document.getElementById('staff-queue-list');
-    const items = getBookings().filter(b => b.hospital === hosp && b.date === date);
-    list.innerHTML = items.length ? '' : '<p class="empty-state">No bookings for this date.</p>';
-
-    items.forEach(item => {
-        const div = document.createElement('div');
-        div.className = 'q-item';
-        const nextStatus = item.status === 'Confirmed' ? 'Checked In' : 'Seen';
-        div.innerHTML = `
-            <div class="q-info">
-                <strong>${item.id} • ${item.name}</strong>
-                <span>${DEPT_NAMES[item.dept]} | ⏰ ${item.slot} | Status: ${item.status}</span>
-            </div>
-            <button type="button" class="q-action-btn ${item.status === 'Seen' ? 'done' : ''}" ${item.status === 'Seen' ? 'disabled' : ''}>
-                ${item.status === 'Seen' ? '✓ Seen' : `Mark ${nextStatus}`}
-            </button>
-        `;
-        div.querySelector('button').addEventListener('click', () => {
-            const all = getBookings();
-            const target = all.find(b => b.id === item.id);
-            if (target) target.status = nextStatus;
-            saveBookings(all);
-            renderStaffQueue();
-            renderMyTicket();
-        });
-        list.appendChild(div);
-    });
+async function updateBookingRecord(id, changes) {
+  if (supabaseClient) {
+    const { error } = await supabaseClient
+      .from("bookings")
+      .update(changes)
+      .eq("id", id);
+    if (!error) await fetchFromSupabase();
+  } else {
+    const target = allBookings.find((b) => b.id === id);
+    if (target) Object.assign(target, changes);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(allBookings));
+  }
 }
 
-document.getElementById('reset-demo-btn').addEventListener('click', () => {
-    localStorage.removeItem(DB_KEY);
-    localStorage.removeItem(MY_TICKET_KEY);
-    renderSlotsAndCrowd();
-    renderMyTicket();
+function refreshAllViews() {
+  renderSlots();
+  if (document.getElementById("panel-ticket").classList.contains("active")) {
+    renderMyPass();
+  }
+  if (staffUnlocked) {
     renderStaffQueue();
-});
+  }
+}
 
-// Tab Switching
+function showToast(msg) {
+  const toast = document.getElementById("toast");
+  toast.textContent = msg;
+  toast.classList.add("show");
+  setTimeout(() => toast.classList.remove("show"), 2600);
+}
+
 function switchTab(tabName) {
-    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-    document.querySelectorAll('.view-section').forEach(s => s.classList.remove('active'));
-    document.getElementById(`tab-${tabName}`).classList.add('active');
+  document.querySelectorAll(".tab-btn").forEach((btn) => {
+    btn.classList.toggle("active", btn.dataset.tab === tabName);
+  });
+  document.querySelectorAll(".panel").forEach((panel) => {
+    panel.classList.toggle("active", panel.id === `panel-${tabName}`);
+  });
+  if (tabName === "ticket") renderMyPass();
+  if (tabName === "staff" && staffUnlocked) renderStaffQueue();
+}
 
-        const items = getBookings().filter(b => b.hospital === hosp && b.date === date);
-    list.innerHTML = items.length ? '' : '<p class="empty-state">No bookings for this date.</p>';
+function updateCrowdBanner() {
+  const hospital = document.getElementById("hospitalSelect").value;
+  const dept = document.getElementById("deptSelect").value;
+  const date = document.getElementById("dateInput").value;
+  const filtered = allBookings.filter(
+    (b) => b.hospital === hospital && b.dept === dept && b.date === date
+  );
 
-    items.forEach(item => {
-        const div = document.createElement('div');
-        div.className = 'q-item';
-        const nextStatus = item.status === 'Confirmed' ? 'Checked In' : 'Seen';
-        div.innerHTML = `
-            <div class="q-info">
-                <strong>${item.id} • ${item.name}</strong>
-                <span>${DEPT_NAMES[item.dept]} | ⏰ ${item.slot} | Status: ${item.status}</span>
-            </div>
-            <button type="button" class="q-action-btn ${item.status === 'Seen' ? 'done' : ''}" ${item.status === 'Seen' ? 'disabled' : ''}>
-                ${item.status === 'Seen' ? '✓ Seen' : `Mark ${nextStatus}`}
-            </button>
-        `;
-        div.querySelector('button').addEventListener('click', () => {
-            const all = getBookings();
-            const target = all.find(b => b.id === item.id);
-            if (target) target.status = nextStatus;
-            saveBookings(all);
-            renderStaffQueue();
-            renderMyTicket();
-        });
-        list.appendChild(div);
+  const totalCap = TIME_SLOTS.length * SLOT_CAPACITY;
+  const count = filtered.length;
+  const pct = Math.min(100, Math.round((count / totalCap) * 100));
+
+  document.getElementById("bannerHospitalName").textContent = HOSPITALS[hospital];
+  document.getElementById("bannerDeptName").textContent = `${DEPARTMENTS[dept]} • ${date}`;
+  document.getElementById("crowdCountText").textContent = `${count} / ${totalCap} daily slots booked`;
+
+  const fill = document.getElementById("crowdMeterFill");
+  const pill = document.getElementById("crowdLevelBadge");
+  const waitText = document.getElementById("crowdWaitText");
+
+  fill.style.width = `${Math.max(8, pct)}%`;
+
+  if (pct < 45) {
+    pill.textContent = "Low Crowd";
+    pill.className = "crowd-pill low";
+    fill.style.background = "#0f766e";
+    waitText.textContent = "Est. wait: ~10 mins";
+  } else if (pct < 80) {
+    pill.textContent = "Moderate Flow";
+    pill.className = "crowd-pill moderate";
+    fill.style.background = "#d97706";
+    waitText.textContent = "Est. wait: ~20 mins";
+  } else {
+    pill.textContent = "High Demand";
+    pill.className = "crowd-pill high";
+    fill.style.background = "#dc2626";
+    waitText.textContent = "Arrive strictly in window";
+  }
+}
+
+function renderSlots() {
+  const hospital = document.getElementById("hospitalSelect").value;
+  const dept = document.getElementById("deptSelect").value;
+  const date = document.getElementById("dateInput").value;
+  const filtered = allBookings.filter(
+    (b) => b.hospital === hospital && b.dept === dept && b.date === date
+  );
+
+  const grid = document.getElementById("slotsGrid");
+  grid.innerHTML = "";
+
+  TIME_SLOTS.forEach((slot) => {
+    const taken = filtered.filter((b) => b.slot === slot).length;
+    const left = SLOT_CAPACITY - taken;
+    const isFull = left <= 0;
+
+    if (selectedSlot === slot && isFull) selectedSlot = null;
+
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "slot-btn" + (selectedSlot === slot ? " selected" : "");
+    btn.disabled = isFull;
+
+    let capClass = "cap-open";
+    let capText = `${left} spots left`;
+    if (isFull) {
+      capClass = "cap-full";
+      capText = "FULL — Locked";
+    } else if (left === 1) {
+      capClass = "cap-low";
+      capText = "1 spot left";
+    }
+
+    btn.innerHTML = `
+      <span class="slot-time">${slot}</span>
+      <span class="slot-cap ${capClass}">${capText}</span>
+    `;
+
+    btn.addEventListener("click", () => {
+      selectedSlot = slot;
+      renderSlots();
     });
+
+    grid.appendChild(btn);
+  });
+
+  updateCrowdBanner();
 }
 
-document.getElementById('reset-demo-btn').addEventListener('click', () => {
-    localStorage.removeItem(DB_KEY);
-    localStorage.removeItem(MY_TICKET_KEY);
-    renderSlotsAndCrowd();
-    renderMyTicket();
-    renderStaffQueue();
-});
-
-// Tab Switching
-function switchTab(tabName) {
-    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-    document.querySelectorAll('.view-section').forEach(s => s.classList.remove('active'));
-    document.getElementById(`tab-${tabName}`).classList.add('active');
-    document.getElementById(`view-${tabName}`).classList.add('active');
+function generateTicketId(hospital, dept) {
+  const randomSuffix = Math.floor(100 + Math.random() * 899);
+  return `${hospital}-${dept}-${randomSuffix}`;
 }
 
-document.getElementById('tab-patient').addEventListener('click', () => switchTab('patient'));
-document.getElementById('tab-ticket').addEventListener('click', () => { renderMyTicket(); switchTab('ticket'); });
-document.getElementById('tab-staff').addEventListener('click', () => { renderStaffQueue(); switchTab('staff'); });
-document.getElementById('go-book-btn').addEventListener('click', () => switchTab('patient'));
+async function handleBookingSubmit(e) {
+  e.preventDefault();
+  if (!selectedSlot) {
+    showToast("Please select a 30-minute time window first.");
+    return;
+  }
 
-if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(() => {}));
-}
+  const submitBtn = document.getElementById("bookSubmitBtn");
+  submitBtn.disabled = true;
+  submitBtn.textContent = "Confirming Slot...";
 
-renderSlotsAndCrowd();
-renderMyTicket();
+  const hospital = document.getElementById("hospitalSelect").value;
+  const dept = document.getElementById("deptSelect").value;
+  const date = document.getElementById("dateInput").value;
+  const priority = document.getElementById("prioritySelect").value;
+  const name = document.getElementById("patientName").value.trim();
+  const phone = document.getElementById("patientPhone").value.trim();
+  const note = document.getElementById("visitNote").value.trim();
+
+  if (supabaseClient) await fetchFromSupabase();
+
+  const slotCount = allBookings.filter(
+    (b) => b.hospital === hospital && b.dept === dept && b.date === date && b.slot === selectedSlot
+  ).length;
+
+  if (slotCount >= SLOT_CAPACITY) {
+    showToast("That time slot just filled up. Please pick another.");
+    selectedSlot = null;
+    submitBtn.disabled = false;
+    submitBtn.textContent = "Confirm Staggered Slot & Generate QR Pass";
+    renderSlots();
+    return;
+  }
 
