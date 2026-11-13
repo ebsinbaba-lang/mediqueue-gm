@@ -1,5 +1,5 @@
 // =========================================================
-// PASTE YOUR SUPABASE CREDENTIALS BELOW
+// SUPABASE CREDENTIALS (CONFIGURED)
 // =========================================================
 const SUPABASE_URL = "https://supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_jnJt6-2gsHXdbMdQEEWL5w_00k4bsE1";
@@ -47,9 +47,9 @@ let staffUnlocked = false;
 function getTodayISO() {
   const now = new Date();
   const offset = now.getTimezoneOffset() * 60000;
-  return new Date(now - offset).toISOString().split("T")[0];
+  return new Date(now - offset).toISOString().split("T");
 }
- 
+
 function getSeedBookings() {
   const today = getTodayISO();
   return [
@@ -108,8 +108,7 @@ function isSupabaseConfigured() {
   return (
     window.supabase &&
     SUPABASE_URL.startsWith("https://") &&
-    SUPABASE_ANON_KEY.length > 20 &&
-    !SUPABASE_ANON_KEY.includes("PASTE_YOUR")
+    SUPABASE_ANON_KEY.length > 20
   );
 }
 
@@ -348,3 +347,4 @@ async function handleBookingSubmit(e) {
     return;
   }
 
+  const newTicket = {
