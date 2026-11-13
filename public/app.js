@@ -2,7 +2,7 @@
 // PASTE YOUR SUPABASE CREDENTIALS BELOW
 // =========================================================
 const SUPABASE_URL = "https://supabase.co";
-const SUPABASE_ANON_KEY = "PASTE_YOUR_PUBLISHABLE_KEY_HERE";
+const SUPABASE_ANON_KEY = sb_publishable_jnJt6-2gsHXdbMdQEEWL5w_00k4bsE1;
 // =========================================================
 
 const STORAGE_KEY = "mediqueue_gm_bookings_v2";
