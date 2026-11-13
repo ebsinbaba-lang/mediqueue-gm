@@ -532,6 +532,27 @@ window.escalatePriority = async function (id) {
   showToast(`${id} escalated to URGENT priority!`);
 };
 
+function applyPortalMode() {
+  const params = new URLSearchParams(window.location.search);
+  const isStaffPortal = params.get("staff") === "1";
+  const tabPatient = document.getElementById("tabPatient");
+  const tabTicket = document.getElementById("tabTicket");
+  const tabStaff = document.getElementById("tabStaff");
+  const crowdBanner = document.getElementById("crowdBanner");
+  const subtitle = document.querySelector(".subtitle");
+
+  if (isStaffPortal) {
+    if (tabPatient) tabPatient.style.display = "none";
+    if (tabTicket) tabTicket.style.display = "none";
+    if (crowdBanner) crowdBanner.style.display = "none";
+    if (subtitle) subtitle.textContent = "Hospital Reception & Clinical Triage Workstation";
+    switchTab("staff");
+  } else {
+    if (tabStaff) tabStaff.style.display = "none";
+    switchTab("patient");
+  }
+}
+
 function init() {
   const dateInput = document.getElementById("dateInput");
   dateInput.value = getTodayISO();
@@ -587,6 +608,7 @@ function init() {
   document.getElementById("staffDeptFilter").addEventListener("change", renderStaffQueue);
 
   initDataLayer();
+  applyPortalMode();
 
   if ("serviceWorker" in navigator) {
     navigator.serviceWorker.register("/sw.js").catch(() => {});
