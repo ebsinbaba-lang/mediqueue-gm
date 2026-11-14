@@ -3,7 +3,7 @@
 // =========================================================
 const SUPABASE_URL = "https://supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_jnJt6-2gsHXdbMdQEEWL5w_00k4bsE1";
-// =========================================================
+// ========================================================= 
 
 const STORAGE_KEY = "mediqueue_gm_bookings_v2";
 const LAST_TICKET_KEY = "mediqueue_gm_last_ticket";
