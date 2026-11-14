@@ -344,3 +344,271 @@ function renderSlots() {
     }
 
     btn.innerHTML = `
+    btn.innerHTML = `
+      <span class="slot-time">${slot}</span>
+      <span class="slot-cap ${capClass}">${capText}</span>
+    `;
+
+    btn.addEventListener("click", () => {
+      selectedSlot = slot;
+      renderSlots();
+    });
+
+    grid.appendChild(btn);
+  });
+
+  updateCrowdBanner();
+}
+
+function generateTicketId(hospital, dept) {
+  const randomSuffix = Math.floor(100 + Math.random() * 899);
+  return `${hospital}-${dept}-${randomSuffix}`;
+}
+
+async function handleBookingSubmit(e) {
+  e.preventDefault();
+  if (!selectedSlot) {
+    showToast("Please select a 30-minute time window first.");
+    return;
+  }
+
+  const submitBtn = document.getElementById("bookSubmitBtn");
+  submitBtn.disabled = true;
+  submitBtn.textContent = "Confirming Slot...";
+
+  const hospital = document.getElementById("hospitalSelect").value;
+  const dept = document.getElementById("deptSelect").value;
+  const date = document.getElementById("dateInput").value;
+  const priority = document.getElementById("prioritySelect").value;
+  const name = document.getElementById("patientName").value.trim();
+  const phone = document.getElementById("patientPhone").value.trim();
+  const note = document.getElementById("visitNote").value.trim();
+
+  if (supabaseClient) await fetchFromSupabase();
+
+  const slotCount = allBookings.filter(
+    (b) => b.hospital === hospital && b.dept === dept && b.date === date && b.slot === selectedSlot
+  ).length;
+
+  if (slotCount >= SLOT_CAPACITY) {
+    showToast("That time slot just filled up. Please pick another.");
+    selectedSlot = null;
+    submitBtn.disabled = false;
+    submitBtn.textContent = "Confirm Staggered Slot & Generate QR Pass";
+    renderSlots();
+    return;
+  }
+
+  const newTicket = {
+    id: generateTicketId(hospital, dept),
+    hospital,
+    dept,
+    date,
+    slot: selectedSlot,
+    name,
+    phone,
+    note: note || "General Consultation",
+    priority,
+    status: "Booked"
+  };
+
+  const ok = await saveNewBooking(newTicket);
+  submitBtn.disabled = false;
+  submitBtn.textContent = "Confirm Staggered Slot & Generate QR Pass";
+
+  if (ok) {
+    localStorage.setItem(LAST_TICKET_KEY, newTicket.id);
+    document.getElementById("bookingForm").reset();
+    document.getElementById("dateInput").value = date;
+    selectedSlot = null;
+    renderSlots();
+    showToast(`Booked! Pass ${newTicket.id} synced.`);
+    switchTab("ticket");
+  }
+}
+
+function renderMyPass() {
+  const container = document.getElementById("ticketContainer");
+  const lastId = localStorage.getItem(LAST_TICKET_KEY);
+  const ticket = allBookings.find((b) => b.id === lastId) || allBookings[allBookings.length - 1];
+
+  if (!ticket) {
+    container.innerHTML = `<div class="card"><p class="muted">No active appointment pass found. Book a time slot first.</p></div>`;
+    return;
+  }
+
+  container.innerHTML = `
+    <div class="ticket-pass">
+      <div class="ticket-top">
+        <div>
+          <div style="font-size:0.75rem; opacity:0.88;">DIGITAL QR QUEUE PASS</div>
+          <div class="ticket-code">${ticket.id}</div>
+        </div>
+        <span class="badge-live" style="background:#fff;">${ticket.status.toUpperCase()}</span>
+      </div>
+
+      <div class="qr-section">
+        <div id="qrcodeBox"></div>
+        <span class="qr-caption">Show this QR code at Hospital Reception for 2-second check-in</span>
+      </div>
+
+      <div class="ticket-body">
+        <div class="ticket-row"><span class="ticket-label">Patient</span><span class="ticket-val">${ticket.name}</span></div>
+        <div class="ticket-row"><span class="ticket-label">Triage Level</span><span class="ticket-val"><span class="prio-tag prio-${ticket.priority || 'Routine'}">${ticket.priority || 'Routine'}</span></span></div>
+        <div class="ticket-row"><span class="ticket-label">Hospital</span><span class="ticket-val">${HOSPITALS[ticket.hospital]}</span></div>
+        <div class="ticket-row"><span class="ticket-label">Department</span><span class="ticket-val">${DEPARTMENTS[ticket.dept]}</span></div>
+        <div class="ticket-row"><span class="ticket-label">Date</span><span class="ticket-val">${ticket.date}</span></div>
+        <div class="ticket-row"><span class="ticket-label">Arrival Window</span><span class="ticket-val" style="color:#0f766e;">${ticket.slot}</span></div>
+      </div>
+
+      <div class="ticket-actions">
+        <button class="btn-primary" id="copyWhatsappBtn">Copy for WhatsApp</button>
+        <button class="btn-outline" id="newBookingBtn">Book Another</button>
+      </div>
+    </div>
+  `;
+
+  if (window.QRCode) {
+    new QRCode(document.getElementById("qrcodeBox"), {
+      text: JSON.stringify({
+        id: ticket.id,
+        hospital: ticket.hospital,
+        dept: ticket.dept,
+        slot: ticket.slot,
+        priority: ticket.priority || "Routine"
+      }),
+      width: 136,
+      height: 136,
+      colorDark: "#0f172a",
+      colorLight: "#ffffff"
+    });
+  }
+
+  document.getElementById("copyWhatsappBtn").addEventListener("click", () => {
+    const text =
+      `*MediQueue GM — Appointment Pass*\n` +
+      `Ticket ID: *${ticket.id}* (${ticket.priority || "Routine"})\n` +
+      `Patient: ${ticket.name}\n` +
+      `Hospital: ${HOSPITALS[ticket.hospital]}\n` +
+      `Department: ${DEPARTMENTS[ticket.dept]}\n` +
+      `Date: ${ticket.date}\n` +
+      `Arrival Window: *${ticket.slot}*`;
+
+    navigator.clipboard.writeText(text).then(() => {
+      showToast("Pass copied! Ready to paste in WhatsApp.");
+    });
+  });
+
+  document.getElementById("newBookingBtn").addEventListener("click", () => switchTab("patient"));
+}
+
+function renderStaffQueue() {
+  if (!staffProfile) return;
+
+  const assignedHosp = staffProfile.hospital;
+  const deptFilter = document.getElementById("staffDeptFilter").value;
+
+  const filtered = allBookings
+    .filter((b) => {
+      const matchHosp = b.hospital === assignedHosp;
+      const matchDept = deptFilter === "ALL" || b.dept === deptFilter;
+      return matchHosp && matchDept;
+    })
+    .sort((a, b) => {
+      const wA = PRIORITY_WEIGHT[a.priority || "Routine"] || 3;
+      const wB = PRIORITY_WEIGHT[b.priority || "Routine"] || 3;
+      return wA - wB;
+    });
+
+  document.getElementById("kpiTotal").textContent = filtered.length;
+  document.getElementById("kpiUrgent").textContent = filtered.filter(
+    (b) => (b.priority === "Urgent" || b.priority === "Priority") && b.status !== "Seen"
+  ).length;
+  document.getElementById("kpiCheckedIn").textContent = filtered.filter((b) => b.status === "Checked-In").length;
+  document.getElementById("kpiSeen").textContent = filtered.filter((b) => b.status === "Seen").length;
+
+  const list = document.getElementById("staffQueueList");
+  if (filtered.length === 0) {
+    list.innerHTML = `<div class="card"><p class="muted">No patient bookings at ${HOSPITALS[assignedHosp] || assignedHosp} match this filter.</p></div>`;
+    return;
+  }
+
+  list.innerHTML = filtered
+    .map((item) => {
+      const prio = item.priority || "Routine";
+      const statusClass =
+        item.status === "Seen"
+          ? "status-seen"
+          : item.status === "Checked-In"
+          ? "status-checked-in"
+          : "status-booked";
+
+      return `
+        <div class="queue-item border-${prio}">
+          <div class="queue-meta">
+            <h4>${item.id} — ${item.name} <span class="prio-tag prio-${prio}">${prio}</span></h4>
+            <p>${HOSPITALS[item.hospital]} • ${DEPARTMENTS[item.dept]}</p>
+            <p><strong>${item.slot}</strong> (${item.date}) • ${item.phone}</p>
+            <p>Note: ${item.note}</p>
+            <span class="status-tag ${statusClass}">${item.status}</span>
+          </div>
+          <div class="queue-btns">
+            ${
+              item.status === "Booked"
+                ? `<button class="btn-secondary btn-sm" onclick="updatePatientStatus('${item.id}', 'Checked-In')">Check In</button>`
+                : ""
+            }
+            ${
+              item.status !== "Seen"
+                ? `<button class="btn-primary btn-sm" onclick="updatePatientStatus('${item.id}', 'Seen')">Mark Seen</button>`
+                : `<span class="muted" style="font-size:0.75rem;">Completed</span>`
+            }
+            ${
+              prio !== "Urgent" && item.status !== "Seen"
+                ? `<button class="btn-danger btn-sm" onclick="escalatePriority('${item.id}')">Flag Urgent</button>`
+                : ""
+            }
+          </div>
+        </div>
+      `;
+    })
+    .join("");
+}
+
+window.updatePatientStatus = async function (id, newStatus) {
+  await updateBookingRecord(id, { status: newStatus });
+  refreshAllViews();
+  showToast(`${id} marked as ${newStatus}`);
+};
+
+window.escalatePriority = async function (id) {
+  await updateBookingRecord(id, { priority: "Urgent" });
+  refreshAllViews();
+  showToast(`${id} escalated to URGENT priority!`);
+};
+
+function applyPortalMode() {
+  const params = new URLSearchParams(window.location.search);
+  const isStaffPortal = params.get("staff") === "1";
+  const tabPatient = document.getElementById("tabPatient");
+  const tabTicket = document.getElementById("tabTicket");
+  const tabStaff = document.getElementById("tabStaff");
+  const crowdBanner = document.getElementById("crowdBanner");
+  const subtitle = document.getElementById("portalSubtitle");
+  const switchLink = document.getElementById("portalSwitchLink");
+
+  if (isStaffPortal) {
+    if (tabPatient) tabPatient.style.display = "none";
+    if (tabTicket) tabTicket.style.display = "none";
+    if (tabStaff) tabStaff.style.display = "inline-block";
+    if (crowdBanner) crowdBanner.style.display = "none";
+    if (subtitle) subtitle.textContent = "Hospital Reception & Clinical Triage Workstation";
+    if (switchLink) {
+      switchLink.href = "/";
+      switchLink.textContent = "← Patient Portal";
+    }
+    switchTab("staff");
+  } else {
+    if (tabPatient) tabPatient.style.display = "inline-block";
+    if (tabTicket) tabTicket.style.display = "inline-block";
+    if (tabStaff) tabStaff.style.display = "none";
