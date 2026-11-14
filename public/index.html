@@ -7,14 +7,9 @@
   <title>MediQueue GM — Hospital Queue & Slot Booking</title>
   <link rel="manifest" href="/manifest.json" />
   <link rel="stylesheet" href="/style.css" />
-  <!-- Supabase JS & QRCode Libraries -->
-  <!-- Supabase JS & QRCode Libraries -->
-<script>
-  document.write('<scr' + 'ipt src="https://' + 'cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></scr' + 'ipt>');
-  document.write('<scr' + 'ipt src="https://' + 'cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></scr' + 'ipt>');
-  document.write('<scr' + 'ipt src="https://' + 'cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></scr' + 'ipt>');
-</script>
-
+  <script src="https://jsdelivr.net"></script>
+  <script src="https://jsdelivr.net"></script>
+  <script src="https://jsdelivr.net"></script>
 </head>
 <body>
   <header class="topbar">
@@ -135,24 +130,34 @@
     <section class="panel" id="panel-staff">
       <div class="card" id="staffLockCard">
         <h3>Staff Triage Access</h3>
-        <p class="muted">Enter reception/nurse PIN to manage live patient check-ins. (Demo PIN: <strong>1234</strong>)</p>
-        <div class="pin-row">
-          <input type="password" id="staffPinInput" maxlength="4" placeholder="Enter PIN" inputmode="numeric" />
-          <button class="btn-primary" id="unlockStaffBtn">Unlock Dashboard</button>
-        </div>
-        <p class="error-text" id="pinError"></p>
+        <p class="muted">Sign in with your verified hospital staff email and password to manage live triage.</p>
+        <form id="staffLoginForm" style="margin-top: 12px;">
+          <div class="grid-2">
+            <div class="field">
+              <label for="staffEmailInput">Staff Email</label>
+              <input type="email" id="staffEmailInput" placeholder="e.g., nurse@efsth.gm" required />
+            </div>
+            <div class="field">
+              <label for="staffPasswordInput">Password</label>
+              <input type="password" id="staffPasswordInput" placeholder="Enter password" required />
+            </div>
+          </div>
+          <button type="submit" class="btn-primary" id="unlockStaffBtn">Sign In to Dashboard</button>
+        </form>
+        <p class="error-text" id="pinError" style="margin-top: 8px;"></p>
       </div>
 
       <div id="staffDashboard" class="hidden">
         <div class="card">
           <div class="card-header-row">
             <div>
-              <h3>Live Reception & Priority Triage</h3>
+              <span class="badge-live" id="staffRoleBadge">STAFF VERIFIED</span>
+              <h3 id="staffWelcomeTitle" style="margin-top: 4px;">Live Reception & Priority Triage</h3>
               <p class="muted" id="staffFilterLabel">Urgent & Priority cases auto-sort to top</p>
             </div>
             <div class="staff-actions-top">
               <button class="btn-secondary btn-sm" id="quickScanBtn">Quick QR Check-In</button>
-              <button class="btn-outline btn-sm" id="lockStaffBtn">Lock</button>
+              <button class="btn-outline btn-sm" id="lockStaffBtn">Sign Out</button>
             </div>
           </div>
 
@@ -176,8 +181,7 @@
           </div>
 
           <div class="grid-2 filter-bar">
-            <select id="staffHospitalFilter">
-              <option value="ALL">All Hospitals</option>
+            <select id="staffHospitalFilter" disabled title="Assigned to your staff profile">
               <option value="EFSTH">EFSTH (Banjul)</option>
               <option value="KGH">Kanifing General Hospital</option>
               <option value="SGH">Serekunda General Hospital</option>
