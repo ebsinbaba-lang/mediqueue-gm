@@ -17,14 +17,17 @@
       <div class="logo-badge">+</div>
       <div class="brand-text">
         <h1>MediQueue GM</h1>
-        <p class="subtitle">Staggered Hospital Appointment & Triage System</p>
+        <p class="subtitle" id="portalSubtitle">Staggered Hospital Appointment & Triage System</p>
       </div>
-      <span class="sync-badge" id="syncStatusBadge">Connecting...</span>
+      <div style="margin-left:auto; display:flex; align-items:center; gap:8px;">
+        <a href="/?staff=1" id="portalSwitchLink" style="color:#fff; font-size:0.78rem; text-decoration:underline; opacity:0.9;">Staff Portal →</a>
+        <span class="sync-badge" id="syncStatusBadge">Connecting...</span>
+      </div>
     </div>
-    <nav class="tabs" role="tablist">
+    <nav class="tabs" role="tablist" id="mainTabs">
       <button class="tab-btn active" data-tab="patient" id="tabPatient">Patient Booking</button>
       <button class="tab-btn" data-tab="ticket" id="tabTicket">My QR Pass</button>
-      <button class="tab-btn" data-tab="staff" id="tabStaff">Staff Triage</button>
+      <button class="tab-btn" data-tab="staff" id="tabStaff" style="display:none;">Staff Triage</button>
     </nav>
   </header>
 
