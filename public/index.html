@@ -7,9 +7,9 @@
   <title>MediQueue GM — Hospital Queue & Slot Booking</title>
   <link rel="manifest" href="/manifest.json" />
   <link rel="stylesheet" href="/style.css" />
-  <script src="https://jsdelivr.net"></script>
-  <script src="https://jsdelivr.net"></script>
-  <script src="https://jsdelivr.net"></script>
+  <script src="https://unpkg.com"></script>
+  <script src="https://cloudflare.com"></script>
+  <script src="https://unpkg.com"></script>
 </head>
 <body>
   <header class="topbar">
@@ -19,8 +19,8 @@
         <h1>MediQueue GM</h1>
         <p class="subtitle" id="portalSubtitle">Staggered Hospital Appointment & Triage System</p>
       </div>
-      <div style="margin-left:auto; display:flex; align-items:center; gap:8px;">
-        <a href="/?staff=1" id="portalSwitchLink" style="color:#fff; font-size:0.78rem; text-decoration:underline; opacity:0.9;">Staff Portal →</a>
+      <div style="margin-left:auto; display:flex; align-items:center; gap:10px; position:relative; z-index:99;">
+        <a href="/?staff=1" id="portalSwitchLink" onclick="window.location.href=this.href; return false;" style="color:#fff; font-size:0.8rem; font-weight:600; text-decoration:underline; cursor:pointer; padding:4px 8px;">Staff Portal →</a>
         <span class="sync-badge" id="syncStatusBadge">Connecting...</span>
       </div>
     </div>
@@ -163,7 +163,7 @@
               <button class="btn-outline btn-sm" id="lockStaffBtn">Sign Out</button>
             </div>
           </div>
-          
+
           <div class="kpi-row">
             <div class="kpi-box">
               <span class="kpi-num" id="kpiTotal">0</span>
