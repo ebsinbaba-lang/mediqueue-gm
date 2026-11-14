@@ -344,7 +344,6 @@ function renderSlots() {
     }
 
     btn.innerHTML = `
-    btn.innerHTML = `
       <span class="slot-time">${slot}</span>
       <span class="slot-cap ${capClass}">${capText}</span>
     `;
