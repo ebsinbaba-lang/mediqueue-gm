@@ -612,3 +612,114 @@ function applyPortalMode() {
     if (tabPatient) tabPatient.style.display = "inline-block";
     if (tabTicket) tabTicket.style.display = "inline-block";
     if (tabStaff) tabStaff.style.display = "none";
+    if (subtitle) subtitle.textContent = "Staggered Hospital Appointment & Triage System";
+    if (switchLink) {
+      switchLink.href = "/?staff=1";
+      switchLink.textContent = "Staff Portal →";
+    }
+    switchTab("patient");
+  }
+}
+
+function init() {
+  const dateInput = document.getElementById("dateInput");
+  dateInput.value = getTodayISO();
+  dateInput.min = getTodayISO();
+
+  document.querySelectorAll(".tab-btn").forEach((btn) => {
+    btn.addEventListener("click", () => switchTab(btn.dataset.tab));
+  });
+
+  ["hospitalSelect", "deptSelect", "dateInput"].forEach((id) => {
+    document.getElementById(id).addEventListener("change", () => {
+      selectedSlot = null;
+      renderSlots();
+    });
+  });
+
+  document.getElementById("bookingForm").addEventListener("submit", handleBookingSubmit);
+
+  document.getElementById("staffLoginForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const errorEl = document.getElementById("pinError");
+    const loginBtn = document.getElementById("unlockStaffBtn");
+    errorEl.textContent = "";
+
+    if (!supabaseClient) {
+      errorEl.textContent = "Cloud connection unavailable. Check internet or reload.";
+      return;
+    }
+
+    const email = document.getElementById("staffEmailInput").value.trim();
+    const password = document.getElementById("staffPasswordInput").value;
+
+    loginBtn.disabled = true;
+    loginBtn.textContent = "Signing In...";
+
+    const { data, error } = await supabaseClient.auth.signInWithPassword({
+      email,
+      password
+    });
+
+    if (error || !data?.user) {
+      loginBtn.disabled = false;
+      loginBtn.textContent = "Sign In to Dashboard";
+      errorEl.textContent = error?.message || "Invalid email or password.";
+      return;
+    }
+
+    const loaded = await loadStaffProfile(data.user);
+    loginBtn.disabled = false;
+    loginBtn.textContent = "Sign In to Dashboard";
+
+    if (!loaded) {
+      errorEl.textContent = "Authenticated, but no hospital staff profile found.";
+    } else {
+      document.getElementById("staffLoginForm").reset();
+      showToast(`Signed in as ${staffProfile.full_name}`);
+    }
+  });
+
+  document.getElementById("lockStaffBtn").addEventListener("click", async () => {
+    if (supabaseClient) {
+      await supabaseClient.auth.signOut();
+    }
+    staffProfile = null;
+    document.getElementById("staffDashboard").classList.add("hidden");
+    document.getElementById("staffLockCard").classList.remove("hidden");
+    showToast("Signed out of Staff Triage");
+  });
+
+  document.getElementById("quickScanBtn").addEventListener("click", async () => {
+    if (!staffProfile) return;
+    const code = prompt("Enter or scan Patient Ticket ID (e.g., EFSTH-OPD-103):");
+    if (!code) return;
+    let ticketId = code.trim();
+    try {
+      const parsed = JSON.parse(ticketId);
+      if (parsed.id) ticketId = parsed.id;
+    } catch (_) {}
+
+    const match = allBookings.find(
+      (b) => b.id.toLowerCase() === ticketId.toLowerCase() && b.hospital === staffProfile.hospital
+    );
+    if (match) {
+      await updateBookingRecord(match.id, { status: "Checked-In" });
+      refreshAllViews();
+      showToast(`QR Verified: ${match.name} (${match.id}) Checked In!`);
+    } else {
+      showToast(`Ticket ID not found in ${staffProfile.hospital} records.`);
+    }
+  });
+
+  document.getElementById("staffDeptFilter").addEventListener("change", renderStaffQueue);
+
+  applyPortalMode();
+  initDataLayer();
+
+  if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.register("/sw.js").catch(() => {});
+  }
+}
+
+document.addEventListener("DOMContentLoaded", init);
