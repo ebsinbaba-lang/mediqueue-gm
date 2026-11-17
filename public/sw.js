@@ -1,4 +1,4 @@
-const CACHE_NAME = "mediqueue-gm-v10";
+const CACHE_NAME = "mediqueue-gm-v11";
 const ASSETS = ['/', '/index.html', '/style.css', '/app.js', '/manifest.json'];
 
 self.addEventListener('install', (e) => {
