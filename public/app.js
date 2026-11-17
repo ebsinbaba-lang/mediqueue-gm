@@ -214,9 +214,42 @@ async function loadStaffProfile(user) {
   document.getElementById("staffLockCard").classList.add("hidden");
   document.getElementById("staffDashboard").classList.remove("hidden");
   document.getElementById("pinError").textContent = "";
+  
+  const adminCard = document.getElementById("adminProvisionCard");
+  if (profile.role === "admin") {
+    adminCard.classList.remove("hidden");
+    loadIssuedStaffRegistry();
+  } 
+  else {
+    adminCard.classList.add("hidden");
+  }
 
+  
   renderStaffQueue();
   return true;
+}
+async function loadIssuedStaffRegistry() {
+  const listEl = document.getElementById("issuedStaffList");
+  if (!supabaseClient || !listEl) return;
+
+  const { data, error } = await supabaseClient
+    .from("hospital_staff_registry")
+    .select("staff_id, full_name, hospital, role, is_claimed")
+    .order("created_at", { ascending: false });
+
+  if (error || !data) return;
+
+  listEl.innerHTML = `<strong>Issued Staff Registry (${data.length}):</strong><br>` + data
+    .map(
+      (r) =>
+        `<div style="padding:6px 0; border-bottom:1px solid #e2e8f0; display:flex; justify-content:space-between;">
+          <span><strong>${r.staff_id}</strong> — ${r.full_name} (${r.hospital} • ${r.role})</span>
+          <span style="color:${r.is_claimed ? '#0f766e' : '#d97706'}; font-weight:600;">
+            ${r.is_claimed ? '● Active' : '○ Pending Signup'}
+          </span>
+        </div>`
+    )
+    .join("");
 }
 
 async function saveNewBooking(ticket) {
@@ -332,21 +365,30 @@ function renderSlots() {
   const grid = document.getElementById("slotsGrid");
   grid.innerHTML = "";
 
-  TIME_SLOTS.forEach((slot) => {
+   const todayStr = getTodayISO();
+  const currentHour = new Date().getHours();
+
+  TIME_SLOTS.forEach((slotObj) => {
+    const slot = slotObj.label;
+    const isPastToday = date === todayStr && currentHour >= slotObj.endHour;
     const taken = filtered.filter((b) => b.slot === slot).length;
     const left = SLOT_CAPACITY - taken;
     const isFull = left <= 0;
+    const isDisabled = isPastToday || isFull;
 
-    if (selectedSlot === slot && isFull) selectedSlot = null;
+    if (selectedSlot === slot && isDisabled) selectedSlot = null;
 
     const btn = document.createElement("button");
     btn.type = "button";
     btn.className = "slot-btn" + (selectedSlot === slot ? " selected" : "");
-    btn.disabled = isFull;
+    btn.disabled = isDisabled;
 
     let capClass = "cap-open";
     let capText = `${left} spots left`;
-    if (isFull) {
+    if (isPastToday) {
+      capClass = "cap-full";
+      capText = "Passed — Closed";
+    } else if (isFull) {
       capClass = "cap-full";
       capText = "FULL — Locked";
     } else if (left === 1) {
@@ -366,6 +408,7 @@ function renderSlots() {
 
     grid.appendChild(btn);
   });
+
 
   updateCrowdBanner();
 }
@@ -683,7 +726,7 @@ function init() {
     loginBtn.textContent = "Sign In to Dashboard";
 
     if (!loaded) {
-      errorEl.textContent = "Authenticated, but no hospital staff profile found.";
+      errorEl.textContent = "Authenticated, but no hospital staff profile found -- Plz try again.";
     } else {
       document.getElementById("staffLoginForm").reset();
       showToast(`Signed in as ${staffProfile.full_name}`);
@@ -759,6 +802,34 @@ function init() {
     } else {
       document.getElementById("staffRegisterForm").reset();
       showToast(`Verified! Welcome ${staffProfile.full_name}`);
+    }
+  });
+    document.getElementById("issueStaffForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    if (!supabaseClient || staffProfile?.role !== "admin") return;
+
+    const btn = document.getElementById("issueStaffBtn");
+    const staff_id = document.getElementById("newStaffIdInput").value.trim().toUpperCase();
+    const full_name = document.getElementById("newStaffNameInput").value.trim();
+    const hospital = document.getElementById("newStaffHospitalInput").value;
+    const role = document.getElementById("newStaffRoleInput").value;
+
+    btn.disabled = true;
+    btn.textContent = "Issuing ID...";
+
+    const { error } = await supabaseClient
+      .from("hospital_staff_registry")
+      .insert([{ staff_id, full_name, hospital, role }]);
+
+    btn.disabled = false;
+    btn.textContent = "+ Issue Approved Staff ID";
+
+    if (error) {
+      showToast("Error: " + error.message);
+    } else {
+      document.getElementById("issueStaffForm").reset();
+      showToast(`Issued ${staff_id} for ${full_name}`);
+      loadIssuedStaffRegistry();
     }
   });
 
