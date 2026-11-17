@@ -240,6 +240,51 @@
             </select>
           </div>
         </div>
+                  <!-- HOSPITAL IT / ADMIN PROVISIONING PANEL (Shown only when role === 'admin') -->
+        <div class="card hidden" id="adminProvisionCard" style="border-left: 4px solid #0f766e;">
+          <div class="card-header-row">
+            <div>
+              <span class="badge-live" style="background:#0f766e; color:#fff;">HOSPITAL IT ADMIN</span>
+              <h3 style="margin-top:4px;">Issue New Staff IDs & Data Governance</h3>
+              <p class="muted">Pre-approve nurses & receptionists • Patient records auto-purge 14 days post-visit</p>
+            </div>
+          </div>
+
+          <form id="issueStaffForm" style="margin-top:12px;">
+            <div class="grid-2">
+              <div class="field">
+                <label for="newStaffIdInput">New Staff ID</label>
+                <input type="text" id="newStaffIdInput" placeholder="e.g., EFSTH-REC-105" style="text-transform:uppercase;" required />
+              </div>
+              <div class="field">
+                <label for="newStaffNameInput">Staff Full Name</label>
+                <input type="text" id="newStaffNameInput" placeholder="e.g., Receptionist Fatou Jallow" required />
+              </div>
+            </div>
+            <div class="grid-2">
+              <div class="field">
+                <label for="newStaffHospitalInput">Assigned Hospital</label>
+                <select id="newStaffHospitalInput">
+                  <option value="EFSTH">EFSTH (Banjul)</option>
+                  <option value="KGH">Kanifing General Hospital</option>
+                  <option value="SGH">Serekunda General Hospital</option>
+                  <option value="BDH">Brikama District Hospital</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="newStaffRoleInput">Role</label>
+                <select id="newStaffRoleInput">
+                  <option value="receptionist">Receptionist</option>
+                  <option value="nurse">Nurse</option>
+                  <option value="admin">Hospital IT Admin</option>
+                </select>
+              </div>
+            </div>
+            <button type="submit" class="btn-primary btn-sm" id="issueStaffBtn">+ Issue Approved Staff ID</button>
+          </form>
+
+          <div id="issuedStaffList" style="margin-top:14px; font-size:0.85rem;"></div>
+        </div>
 
         <div id="staffQueueList" class="queue-list"></div>
       </div>
