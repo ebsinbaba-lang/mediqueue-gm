@@ -1,8 +1,8 @@
-// =========================================================
 // SUPABASE CREDENTIALS (CONFIGURED)
 // =========================================================
-const SUPABASE_URL = "https://supabase.co";
+const SUPABASE_URL = "https://ggmsdvicirbfodswzilf.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_jnJt6-2gsHXdbMdQEEWL5w_00k4bsE1";
+// =========================================================
 // ========================================================= 
 
 const STORAGE_KEY = "mediqueue_gm_bookings_v2";
@@ -107,9 +107,11 @@ function isSupabaseConfigured() {
   return (
     typeof window.supabase !== "undefined" &&
     SUPABASE_URL.startsWith("https://") &&
+    SUPABASE_URL !== "https://supabase.co" &&
     SUPABASE_ANON_KEY.length > 20
   );
 }
+
 
 function setSyncBadge(isCloud) {
   const badge = document.getElementById("syncStatusBadge");
