@@ -680,6 +680,78 @@ function init() {
       showToast(`Signed in as ${staffProfile.full_name}`);
     }
   });
+    const showLoginBtn = document.getElementById("showStaffLoginBtn");
+  const showRegisterBtn = document.getElementById("showStaffRegisterBtn");
+  const loginSection = document.getElementById("staffLoginSection");
+  const registerSection = document.getElementById("staffRegisterSection");
+
+  showLoginBtn.addEventListener("click", () => {
+    loginSection.classList.remove("hidden");
+    registerSection.classList.add("hidden");
+    showLoginBtn.className = "btn-primary btn-sm";
+    showRegisterBtn.className = "btn-outline btn-sm";
+    document.getElementById("pinError").textContent = "";
+  });
+
+  showRegisterBtn.addEventListener("click", () => {
+    registerSection.classList.remove("hidden");
+    loginSection.classList.add("hidden");
+    showRegisterBtn.className = "btn-primary btn-sm";
+    showLoginBtn.className = "btn-outline btn-sm";
+    document.getElementById("pinError").textContent = "";
+  });
+
+  document.getElementById("staffRegisterForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const errorEl = document.getElementById("pinError");
+    const regBtn = document.getElementById("registerStaffBtn");
+    errorEl.textContent = "";
+
+    if (!supabaseClient) {
+      errorEl.textContent = "Cloud connection unavailable. Check internet or reload.";
+      return;
+    }
+
+    const staffId = document.getElementById("regStaffIdInput").value.trim().toUpperCase();
+    const fullName = document.getElementById("regFullNameInput").value.trim();
+    const email = document.getElementById("regEmailInput").value.trim();
+    const password = document.getElementById("regPasswordInput").value;
+
+    regBtn.disabled = true;
+    regBtn.textContent = "Verifying Staff ID...";
+
+    const { data, error } = await supabaseClient.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          staff_id: staffId,
+          full_name: fullName
+        }
+      }
+    });
+
+    if (error || !data?.user) {
+      regBtn.disabled = false;
+      regBtn.textContent = "Verify ID & Create Account";
+      const msg = error?.message || "Registration failed.";
+      errorEl.textContent = msg.includes("Database error saving new user")
+        ? "Invalid or already registered Hospital Staff ID. Contact Hospital IT."
+        : msg;
+      return;
+    }
+
+    const loaded = await loadStaffProfile(data.user);
+    regBtn.disabled = false;
+    regBtn.textContent = "Verify ID & Create Account";
+
+    if (!loaded) {
+      errorEl.textContent = "Account created, but staff profile could not be loaded.";
+    } else {
+      document.getElementById("staffRegisterForm").reset();
+      showToast(`Verified! Welcome ${staffProfile.full_name}`);
+    }
+  });
 
   document.getElementById("lockStaffBtn").addEventListener("click", async () => {
     if (supabaseClient) {
