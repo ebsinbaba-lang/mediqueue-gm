@@ -24,16 +24,22 @@ const DEPARTMENTS = {
 };
 
 const TIME_SLOTS = [
-  "08:30 - 09:00 AM",
-  "09:00 - 09:30 AM",
-  "09:30 - 10:00 AM",
-  "10:00 - 10:30 AM",
-  "10:30 - 11:00 AM",
-  "11:00 - 11:30 AM",
-  "11:30 - 12:00 PM",
-  "12:00 - 12:30 PM",
-  "12:30 - 01:00 PM",
-  "01:00 - 01:30 PM"
+  { label: "12:00 - 02:00 AM (Night Shift)", startHour: 0, endHour: 2 },
+  { label: "02:00 - 04:00 AM (Night Shift)", startHour: 2, endHour: 4 },
+  { label: "04:00 - 06:00 AM (Early Shift)", startHour: 4, endHour: 6 },
+  { label: "06:00 - 08:00 AM (Morning)", startHour: 6, endHour: 8 },
+  { label: "08:00 - 09:00 AM", startHour: 8, endHour: 9 },
+  { label: "09:00 - 10:00 AM", startHour: 9, endHour: 10 },
+  { label: "10:00 - 11:00 AM", startHour: 10, endHour: 11 },
+  { label: "11:00 - 12:00 PM", startHour: 11, endHour: 12 },
+  { label: "12:00 - 01:00 PM", startHour: 12, endHour: 13 },
+  { label: "01:00 - 02:00 PM", startHour: 13, endHour: 14 },
+  { label: "02:00 - 03:00 PM", startHour: 14, endHour: 15 },
+  { label: "03:00 - 04:00 PM", startHour: 15, endHour: 16 },
+  { label: "04:00 - 06:00 PM (Evening)", startHour: 16, endHour: 18 },
+  { label: "06:00 - 08:00 PM (Evening)", startHour: 18, endHour: 20 },
+  { label: "08:00 - 10:00 PM (Night)", startHour: 20, endHour: 22 },
+  { label: "10:00 - 12:00 AM (Night)", startHour: 22, endHour: 24 }
 ];
 
 const PRIORITY_WEIGHT = { Urgent: 1, Priority: 2, Routine: 3 };
@@ -166,15 +172,18 @@ function fallbackToLocal() {
 }
 
 async function fetchFromSupabase() {
+  const cutoff = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
   const { data, error } = await supabaseClient
     .from("bookings")
     .select("*")
+    .gte("date", cutoff)
     .order("created_at", { ascending: true });
 
   if (!error && data) {
     allBookings = data;
   }
 }
+
 
 async function loadStaffProfile(user) {
   if (!supabaseClient || !user) return false;
