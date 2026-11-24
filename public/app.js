@@ -23,23 +23,33 @@ const DEPARTMENTS = {
   DEN: "Dental Clinic"
 };
 
+const SLOT_CAPACITY = 4;
+
 const TIME_SLOTS = [
-  { label: "12:00 - 02:00 AM (Night Shift)", startHour: 0, endHour: 2 },
-  { label: "02:00 - 04:00 AM (Night Shift)", startHour: 2, endHour: 4 },
-  { label: "04:00 - 06:00 AM (Early Shift)", startHour: 4, endHour: 6 },
-  { label: "06:00 - 08:00 AM (Morning)", startHour: 6, endHour: 8 },
+  { label: "12:00 - 01:00 AM", startHour: 0, endHour: 1 },
+  { label: "01:00 - 02:00 AM", startHour: 1, endHour: 2 },
+  { label: "02:00 - 03:00 AM", startHour: 2, endHour: 3 },
+  { label: "03:00 - 04:00 AM", startHour: 3, endHour: 4 },
+  { label: "04:00 - 05:00 AM", startHour: 4, endHour: 5 },
+  { label: "05:00 - 06:00 AM", startHour: 5, endHour: 6 },
+  { label: "06:00 - 07:00 AM", startHour: 6, endHour: 7 },
+  { label: "07:00 - 08:00 AM", startHour: 7, endHour: 8 },
   { label: "08:00 - 09:00 AM", startHour: 8, endHour: 9 },
   { label: "09:00 - 10:00 AM", startHour: 9, endHour: 10 },
   { label: "10:00 - 11:00 AM", startHour: 10, endHour: 11 },
   { label: "11:00 - 12:00 PM", startHour: 11, endHour: 12 },
-  { label: "12:00 - 01:00 PM", startHour: 12, endHour: 13 },
-  { label: "01:00 - 02:00 PM", startHour: 13, endHour: 14 },
-  { label: "02:00 - 03:00 PM", startHour: 14, endHour: 15 },
-  { label: "03:00 - 04:00 PM", startHour: 15, endHour: 16 },
-  { label: "04:00 - 06:00 PM (Evening)", startHour: 16, endHour: 18 },
-  { label: "06:00 - 08:00 PM (Evening)", startHour: 18, endHour: 20 },
-  { label: "08:00 - 10:00 PM (Night)", startHour: 20, endHour: 22 },
-  { label: "10:00 - 12:00 AM (Night)", startHour: 22, endHour: 24 }
+  { label: "12:00 - 13:00 PM", startHour: 12, endHour: 13 },
+  { label: "01:00 - 14:00 PM", startHour: 13, endHour: 14 },
+  { label: "02:00 - 15:00 PM", startHour: 14, endHour: 15 },
+  { label: "03:00 - 16:00 PM", startHour: 15, endHour: 16 },
+  { label: "04:00 - 17:00 PM", startHour: 16, endHour: 17 },
+  { label: "05:00 - 18:00 PM", startHour: 17, endHour: 18 },
+  { label: "06:00 - 19:00 PM", startHour: 18, endHour: 19 },
+  { label: "07:00 - 20:00 PM", startHour: 19, endHour: 20 },
+  { label: "08:00 - 21:00 PM", startHour: 20, endHour: 21 },
+  { label: "09:00 - 22:00 PM", startHour: 21, endHour: 22 },
+  { label: "10:00 - 23:00 PM", startHour: 22, endHour: 23 },
+  { label: "11:00 - 00:00 AM", startHour: 23, endHour: 24 }
 ];
 
 const PRIORITY_WEIGHT = { Urgent: 1, Priority: 2, Routine: 3 };
@@ -368,20 +378,19 @@ function renderSlots() {
    const todayStr = getTodayISO();
   const currentHour = new Date().getHours();
 
-  TIME_SLOTS.forEach((slotObj) => {
+   TIME_SLOTS.forEach((slotObj) => {
     const slot = slotObj.label;
     const isPastToday = date === todayStr && currentHour >= slotObj.endHour;
     const taken = filtered.filter((b) => b.slot === slot).length;
     const left = SLOT_CAPACITY - taken;
     const isFull = left <= 0;
-    const isDisabled = isPastToday || isFull;
 
-    if (selectedSlot === slot && isDisabled) selectedSlot = null;
+    if (selectedSlot === slot && (isPastToday || isFull)) selectedSlot = null;
 
     const btn = document.createElement("button");
     btn.type = "button";
     btn.className = "slot-btn" + (selectedSlot === slot ? " selected" : "");
-    btn.disabled = isDisabled;
+    btn.disabled = isPastToday;
 
     let capClass = "cap-open";
     let capText = `${left} spots left`;
@@ -390,7 +399,8 @@ function renderSlots() {
       capText = "Passed — Closed";
     } else if (isFull) {
       capClass = "cap-full";
-      capText = "FULL — Locked";
+      capText = "No slot available";
+      btn.style.opacity = "0.65";
     } else if (left === 1) {
       capClass = "cap-low";
       capText = "1 spot left";
@@ -402,6 +412,11 @@ function renderSlots() {
     `;
 
     btn.addEventListener("click", () => {
+      if (isFull) {
+        showToast("No slot available for this hour. Please choose another time.");
+        alert("No slot available for " + slot + ". Please pick another hour.");
+        return;
+      }
       selectedSlot = slot;
       renderSlots();
     });
@@ -443,8 +458,9 @@ async function handleBookingSubmit(e) {
     (b) => b.hospital === hospital && b.dept === dept && b.date === date && b.slot === selectedSlot
   ).length;
 
-  if (slotCount >= SLOT_CAPACITY) {
-    showToast("That time slot just filled up. Please pick another.");
+    if (slotCount >= SLOT_CAPACITY) {
+    showToast("No slot available for this hour. Please pick another.");
+    alert("No slot available for " + selectedSlot + ". Please pick another hour.");
     selectedSlot = null;
     submitBtn.disabled = false;
     submitBtn.textContent = "Confirm Staggered Slot & Generate QR Pass";
