@@ -604,7 +604,7 @@ function renderMyPass() {
       width: 136,
       height: 136,
       colorDark: "#0f172a",
-      colorLight: "#ffffff"
+      colorLight: "#ffffff" 
     });
   }
 
