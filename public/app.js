@@ -23,7 +23,7 @@ const DEPARTMENTS = {
   DEN: "Dental Clinic"
 };
 
-const SLOT_CAPACITY = 4;
+
 
 const TIME_SLOTS = [
   { label: "12:00 - 01:00 AM", startHour: 0, endHour: 1 },
