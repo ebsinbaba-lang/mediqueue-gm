@@ -797,7 +797,7 @@ function init() {
     loginBtn.textContent = "Sign In to Dashboard";
 
     if (!loaded) {
-      errorEl.textContent = "Authenticated, but no hospital staff profile found -- Plz try again.";
+      errorEl.textContent = "Access blocked by Hospital IT Admin -- Please contact IT department.";
     } else {
       document.getElementById("staffLoginForm").reset();
       showToast(`Signed in as ${staffProfile.full_name}`);
