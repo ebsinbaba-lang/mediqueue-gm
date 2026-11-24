@@ -944,6 +944,45 @@ function init() {
   if ("serviceWorker" in navigator) {
     navigator.serviceWorker.register("/sw.js").catch(() => {});
   }
+    const installBtn = document.getElementById("installAppBtn");
+  if (installBtn) {
+    const isStandalone =
+      window.matchMedia("(display-mode: standalone)").matches ||
+      window.navigator.standalone === true;
+
+    if (!isStandalone) {
+      installBtn.classList.remove("hidden");
+    }
+
+    installBtn.addEventListener("click", async () => {
+      if (deferredInstallPrompt) {
+        deferredInstallPrompt.prompt();
+        const { outcome } = await deferredInstallPrompt.userChoice;
+        if (outcome === "accepted") {
+          installBtn.classList.add("hidden");
+        }
+        deferredInstallPrompt = null;
+      } else {
+        showToast("Tap your browser menu (⋮ or Share) → 'Add to Home Screen' to install.");
+      }
+    });
+  }
 }
 
 document.addEventListener("DOMContentLoaded", init);
+
+let deferredInstallPrompt = null;
+
+window.addEventListener("beforeinstallprompt", (e) => {
+  e.preventDefault();
+  deferredInstallPrompt = e;
+  const installBtn = document.getElementById("installAppBtn");
+  if (installBtn) installBtn.classList.remove("hidden");
+});
+
+window.addEventListener("appinstalled", () => {
+  deferredInstallPrompt = null;
+  const installBtn = document.getElementById("installAppBtn");
+  if (installBtn) installBtn.classList.add("hidden");
+  showToast("MediQueue GM installed on your device!");
+});
