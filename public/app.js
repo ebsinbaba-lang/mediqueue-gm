@@ -2,7 +2,6 @@
 // =========================================================
 const SUPABASE_URL = "https://ggmsdvicirbfodswzilf.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_jnJt6-2gsHXdbMdQEEWL5w_00k4bsE1";
-// =========================================================
 // ========================================================= 
 
 const STORAGE_KEY = "mediqueue_gm_bookings_v2";
@@ -208,7 +207,7 @@ async function loadStaffProfile(user) {
     staffProfile = null;
     if (profile?.is_active === false) {
       document.getElementById("pinError").textContent =
-        "Access revoked by Hospital IT Admin.";
+        "Access blocked by Hospital IT Admin. Please contact IT Department.";
     }
     return false;
   }
@@ -242,7 +241,6 @@ async function loadStaffProfile(user) {
   return true;
 }
 // Restoring access for staff
-
 window.toggleStaffAccess = async function (userId, newStatus) {
   if (!supabaseClient || staffProfile?.role !== "admin") return;
   const { error } = await supabaseClient
@@ -253,7 +251,7 @@ window.toggleStaffAccess = async function (userId, newStatus) {
   if (error) {
     showToast("Error: " + error.message);
   } else {
-    showToast(newStatus ? "Staff access restored!" : "Staff access revoked!");
+    showToast(newStatus ? "Staff access unblocked!" : "Staff access blocked!");
     loadIssuedStaffRegistry();
   }
 };
@@ -289,19 +287,26 @@ async function loadIssuedStaffRegistry() {
 
   if (profiles && profiles.length > 0) {
     html +=
-      `<div style="margin-top:14px;"><strong>Active Staff Access Control (${profiles.length}):</strong></div>` +
+      `<div style="margin-top:14px;"><strong>Staff Account Access Control (${profiles.length}):</strong></div>` +
       profiles
         .map((p) => {
           const active = p.is_active !== false;
           const isSelf = staffProfile && p.full_name === staffProfile.full_name && p.role === "admin";
-          return `<div style="padding:6px 0; border-bottom:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center;">
-            <span>${p.full_name} (${p.hospital} • ${p.role})</span>
+          const statusBadge = active
+            ? `<span style="color:#0f766e; font-weight:600; font-size:0.8rem; margin-left:6px;">● Active</span>`
+            : `<span style="color:#dc2626; font-weight:600; font-size:0.8rem; margin-left:6px;">⛔ Blocked</span>`;
+
+          return `<div style="padding:8px 0; border-bottom:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center; gap:8px;">
+            <div>
+              <span><strong>${p.full_name}</strong> (${p.hospital} • ${p.role})</span>
+              ${statusBadge}
+            </div>
             ${
               isSelf
                 ? `<span style="color:#0f766e; font-weight:600;">Current Admin</span>`
                 : active
-                ? `<button type="button" class="btn-danger btn-sm" onclick="toggleStaffAccess('${p.user_id}', false)">Revoke Access</button>`
-                : `<button type="button" class="btn-primary btn-sm" onclick="toggleStaffAccess('${p.user_id}', true)">Restore Access</button>`
+                ? `<button type="button" class="btn-danger btn-sm" onclick="toggleStaffAccess('${p.user_id}', false)">Block Access</button>`
+                : `<button type="button" class="btn-primary btn-sm" onclick="toggleStaffAccess('${p.user_id}', true)">Unblock Access</button>`
             }
           </div>`;
         })
