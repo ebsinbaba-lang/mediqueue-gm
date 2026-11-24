@@ -16,12 +16,15 @@
 <body>
   <header class="topbar">
     
-    <!-- Logo starts with download button -->
+    <!-- Logo starts with download button, and button home -->
     
       <div class="brand">
-      <div class="logo-badge" style="padding: 0; overflow: hidden; background: transparent;">
-        <img src="/icon.png" alt="MediQueue GM Logo" style="width: 100%; height: 100%; object-fit: cover; border-radius: 10px;" />
-      </div>
+            <a href="/" title="Back to Home" onclick="if (window.location.pathname === '/' && !window.location.search) { switchTab('patient'); return false; }" style="display: inline-block; text-decoration: none; cursor: pointer;">
+        <div class="logo-badge" style="padding: 0; overflow: hidden; background: transparent;">
+          <img src="/icon.png" alt="MediQueue GM Logo" style="width: 100%; height: 100%; object-fit: cover; border-radius: 10px;" />
+        </div>
+      </a>
+
       <div class="brand-text">
         <h1>MediQueue GM</h1>
         <p class="subtitle" id="portalSubtitle">Staggered Hospital Appointment & Triage System</p>
