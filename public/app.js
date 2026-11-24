@@ -23,7 +23,7 @@ const DEPARTMENTS = {
   DEN: "Dental Clinic"
 };
 
-
+// Slots available
 
 const TIME_SLOTS = [
   { label: "12:00 - 01:00 AM", startHour: 0, endHour: 1 },
@@ -194,19 +194,22 @@ async function fetchFromSupabase() {
   }
 }
 
-
 async function loadStaffProfile(user) {
   if (!supabaseClient || !user) return false;
 
-  const { data: profile, error } = await supabaseClient
+    const { data: profile, error } = await supabaseClient
     .from("staff_profiles")
-    .select("full_name, hospital, role")
+    .select("full_name, hospital, role, is_active")
     .eq("user_id", user.id)
     .single();
 
-  if (error || !profile) {
+  if (error || !profile || profile.is_active === false) {
     await supabaseClient.auth.signOut();
     staffProfile = null;
+    if (profile?.is_active === false) {
+      document.getElementById("pinError").textContent =
+        "Access revoked by Hospital IT Admin.";
+    }
     return false;
   }
 
@@ -238,29 +241,76 @@ async function loadStaffProfile(user) {
   renderStaffQueue();
   return true;
 }
+// Restoring access for staff
+
+window.toggleStaffAccess = async function (userId, newStatus) {
+  if (!supabaseClient || staffProfile?.role !== "admin") return;
+  const { error } = await supabaseClient
+    .from("staff_profiles")
+    .update({ is_active: newStatus })
+    .eq("user_id", userId);
+
+  if (error) {
+    showToast("Error: " + error.message);
+  } else {
+    showToast(newStatus ? "Staff access restored!" : "Staff access revoked!");
+    loadIssuedStaffRegistry();
+  }
+};
+
 async function loadIssuedStaffRegistry() {
   const listEl = document.getElementById("issuedStaffList");
   if (!supabaseClient || !listEl) return;
 
-  const { data, error } = await supabaseClient
-    .from("hospital_staff_registry")
-    .select("staff_id, full_name, hospital, role, is_claimed")
-    .order("created_at", { ascending: false });
+  const [{ data: registry }, { data: profiles }] = await Promise.all([
+    supabaseClient
+      .from("hospital_staff_registry")
+      .select("staff_id, full_name, hospital, role, is_claimed")
+      .order("created_at", { ascending: false }),
+    supabaseClient
+      .from("staff_profiles")
+      .select("user_id, full_name, hospital, role, is_active")
+  ]);
 
-  if (error || !data) return;
+  if (!registry) return;
 
-  listEl.innerHTML = `<strong>Issued Staff Registry (${data.length}):</strong><br>` + data
-    .map(
-      (r) =>
-        `<div style="padding:6px 0; border-bottom:1px solid #e2e8f0; display:flex; justify-content:space-between;">
-          <span><strong>${r.staff_id}</strong> — ${r.full_name} (${r.hospital} • ${r.role})</span>
-          <span style="color:${r.is_claimed ? '#0f766e' : '#d97706'}; font-weight:600;">
-            ${r.is_claimed ? '● Active' : '○ Pending Signup'}
-          </span>
-        </div>`
-    )
-    .join("");
+  let html = `<strong>Issued Staff Registry (${registry.length}):</strong><br>` +
+    registry
+      .map(
+        (r) =>
+          `<div style="padding:6px 0; border-bottom:1px solid #e2e8f0; display:flex; justify-content:space-between;">
+            <span><strong>${r.staff_id}</strong> — ${r.full_name} (${r.hospital} • ${r.role})</span>
+            <span style="color:${r.is_claimed ? '#0f766e' : '#d97706'}; font-weight:600;">
+              ${r.is_claimed ? '● Active' : '○ Pending Signup'}
+            </span>
+          </div>`
+      )
+      .join("");
+
+  if (profiles && profiles.length > 0) {
+    html +=
+      `<div style="margin-top:14px;"><strong>Active Staff Access Control (${profiles.length}):</strong></div>` +
+      profiles
+        .map((p) => {
+          const active = p.is_active !== false;
+          const isSelf = staffProfile && p.full_name === staffProfile.full_name && p.role === "admin";
+          return `<div style="padding:6px 0; border-bottom:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center;">
+            <span>${p.full_name} (${p.hospital} • ${p.role})</span>
+            ${
+              isSelf
+                ? `<span style="color:#0f766e; font-weight:600;">Current Admin</span>`
+                : active
+                ? `<button type="button" class="btn-danger btn-sm" onclick="toggleStaffAccess('${p.user_id}', false)">Revoke Access</button>`
+                : `<button type="button" class="btn-primary btn-sm" onclick="toggleStaffAccess('${p.user_id}', true)">Restore Access</button>`
+            }
+          </div>`;
+        })
+        .join("");
+  }
+
+  listEl.innerHTML = html;
 }
+// end of revoking and restoring access
 
 async function saveNewBooking(ticket) {
   if (supabaseClient) {
